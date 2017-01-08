@@ -1,0 +1,139 @@
+drop table if exists dots;
+
+create table dots
+(
+    source_path varchar,
+    run_id integer,
+    hash varchar,
+    number varchar,
+    street varchar,
+    unit varchar,
+    postcode varchar
+);
+
+select AddGeometryColumn( 'dots', 'geom', 4326, 'POINTM', 3, false);
+create index dots_nd_index on dots using gist (geom gist_geometry_ops_nd);
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_cupertino.json', 50842, null, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 50842), 4326)
+    from "050842";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_cupertino.json', 66084, null, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 66084), 4326)
+    from "066084";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_cupertino.json', 74411, null, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 74411), 4326)
+    from "074411";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_cupertino.json', 81550, null, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 81550), 4326)
+    from "081550";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_cupertino.json', 86978, null, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 86978), 4326)
+    from "086978";
+
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_cupertino.json', 93908, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 93908), 4326)
+    from "093908";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_cupertino.json', 102092, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 102092), 4326)
+    from "102092";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_cupertino.json', 109915, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 109915), 4326)
+    from "109915";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_cupertino.json', 116823, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 116823), 4326)
+    from "116823";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_cupertino.json', 124711, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 124711), 4326)
+    from "124711";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_cupertino.json', 132571, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 132571), 4326)
+    from "132571";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_cupertino.json', 145270, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 145270), 4326)
+    from "145270";
+
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_mountain_view.json', 52550, null, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 52550), 4326)
+    from "052550";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_mountain_view.json', 60209, null, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 60209), 4326)
+    from "060209";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_mountain_view.json', 66085, null, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 66085), 4326)
+    from "066085";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_mountain_view.json', 74192, null, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 74192), 4326)
+    from "074192";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_mountain_view.json', 81362, null, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 81362), 4326)
+    from "081362";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_mountain_view.json', 86794, null, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 86794), 4326)
+    from "086794";
+
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_mountain_view.json', 101857, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 101857), 4326)
+    from "101857";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_mountain_view.json', 109613, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 109613), 4326)
+    from "109613";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_mountain_view.json', 116705, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 116705), 4326)
+    from "116705";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_mountain_view.json', 124409, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 124409), 4326)
+    from "124409";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_mountain_view.json', 132167, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 132167), 4326)
+    from "132167";
+
+insert into dots (source_path, run_id, hash, number, street, unit, postcode, geom)
+select 'sources/us/ca/city_of_mountain_view.json', 144929, hash, number, street, unit, postcode,
+    st_setsrid(st_makepointm(st_x(geom), st_y(geom), 144929), 4326)
+    from "144929";
+
