@@ -16,3 +16,8 @@ http://postgis.17.x6.nabble.com/4D-points-td3598428.html
     (Why not just use the x/y coordinates and calculate distances off of them?
     Because they are representational, the distances calculated from the x/y
     will not be the same as the actual milepost measurements.) 
+
+source .vrt files could go to:
+
+1.  PostGIS for whole-earth tile storage
+2.  MBTiles for per-run slippy maps
