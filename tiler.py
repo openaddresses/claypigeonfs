@@ -1,13 +1,51 @@
-from os.path import relpath
-import sqlite3, subprocess, re
+import TileStache
+import sqlite3, subprocess, re, os.path
 
 WARNING_PAT_TPL = r'^\S+: Warning: using tile \d+/\d+/\d+ instead of {0}/{1}/{2}\n'
+
+class Config:
+    ''' Implements minimal configuration object for TileStache.
+    
+        See http://tilestache.org/doc/#custom-configuration
+    '''
+    def __init__(self, dirpath):
+        self.cache = TileStache.Caches.Test()
+        self.layers = Layers(self)
+        self.dirpath = dirpath
+
+class Layers:
+    ''' Implements minimal layers stub for TileStache Configuration.
+    
+        See http://tilestache.org/doc/#custom-configuration
+    '''
+    def __init__(self, config):
+        self.config = config
+        self._dict = dict()
+    
+    def keys(self):
+        raise NotImplementedError() # return self._dict.keys()
+
+    def items(self):
+        return self._dict.items()
+
+    def __contains__(self, key):
+        raise NotImplementedError() # return key in self._dict
+
+    def __getitem__(self, key):
+        if key not in self._dict:
+            path = os.path.join(self.config.dirpath, key)
+            proj = TileStache.Geography.SphericalMercator()
+            meta = TileStache.Core.Metatile()
+            layer = TileStache.Core.Layer(self.config, proj, meta)
+            layer.provider = TippecanoeProvider(layer, path)
+            self._dict[key] = layer
+        return self._dict[key]
 
 class TippecanoeProvider:
     ''' Accepts requests for tiles from a Tippecanoe MBTiles file.
     '''
     def __init__(self, layer, path):
-        self.path = relpath(path, layer.config.dirpath)
+        self.path = os.path.join(layer.config.dirpath, path)
     
     def renderTile(self, width, height, srs, coord):
         ''' Return a TileWriter instance for a single tile.
