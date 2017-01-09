@@ -1,3 +1,15 @@
+Slippy dot maps for OpenAddresses have come up in a few ways:
+
+- We have a Mapbox-hosted dotmap at https://openaddresses.io
+- There's some desire for better previews at https://github.com/openaddresses/machine/issues/440
+- Slippy maps are a way to improve previews at https://github.com/openaddresses/machine/issues/466
+
+This is a placeholder repository for some thoughts on how we could add more
+slippy maps with interactive dots to OpenAddresses, and the process and data
+pipelines that would be required to make them work.
+
+----
+
 http://web.archive.org/web/20070227082525/http://fdo.osgeo.org/files/fdo/docs/FDG_FDODevGuide/files/WS7106c181349dd8d016672d6105df83c6e7-7fff.htm
 
     While geometry typically is two- or three-dimensional, it may also contain
