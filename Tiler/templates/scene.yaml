@@ -20,6 +20,7 @@ layers:
         filter: { $zoom: { min: 15 } }
         draw:
             points:
+                interactive: true
                 collide: false
                 color: "#fff"
                 size: 12px
