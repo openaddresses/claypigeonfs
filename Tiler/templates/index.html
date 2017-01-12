@@ -35,17 +35,28 @@
       
       function onHover(selection)
       {
+        var label = document.getElementById('address'),
+            map = document.getElementById('map');
+
         if(selection.feature)
         {
             var props = selection.feature.properties,
                 addr = [props.number, props.street, props.unit].join(' ');
 
-            document.getElementById('address').innerText = addr;
-            document.getElementById('map').style.cursor = 'pointer';
-        } else {
-            //document.getElementById('address').innerText = ' ';
-            document.getElementById('map').style.cursor = '';
+            map.style.cursor = 'pointer';
+            
+            if(addr.trim())
+            {
+                label.innerText = addr;
+                label.style.display = 'block';
+                label.style.left = (selection.pixel.x - 20) + 'px';
+                label.style.top = (selection.pixel.y - label.clientHeight - 10) + 'px';
+                return;
+            }
         }
+
+        map.style.cursor = '';
+        label.style.display = 'none';
       }
       
       function onClick(selection)
