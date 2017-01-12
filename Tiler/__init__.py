@@ -20,4 +20,7 @@ def get_tile(zoom, col, row, ext='json'):
     layer = config.layers['dots.mbtiles']
     coord = ModestMaps.Core.Coordinate(row, col, zoom) # (1582, 656, 12)
     mime, body = TileStache.getTile(layer, coord, ext)
-    return Response(body, headers={'Content-Type': mime})
+    headers = {'Content-Type': mime}
+    if ext == 'mvt':
+        headers.update({'Content-Encoding': 'gzip'})
+    return Response(body, headers=headers)

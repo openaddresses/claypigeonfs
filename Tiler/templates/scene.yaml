@@ -2,13 +2,13 @@ import: https://mapzen.com/carto/refill-style/4/refill-style.yaml
 
 sources:
     _dots:
-        type: GeoJSON
-        url: "{z}/{x}/{y}.json"
+        type: MVT
+        url: "{z}/{x}/{y}.mvt"
         max_zoom: 14
 
 layers:
     _dots0:
-        data: { source: _dots }
+        data: { source: _dots, layer: dots }
         filter: { $zoom: { min: 17 } }
         draw:
             points:
@@ -16,7 +16,7 @@ layers:
                 color: "#ccc"
                 size: 14px
     _dots1:
-        data: { source: _dots }
+        data: { source: _dots, layer: dots }
         filter: { $zoom: { min: 15 } }
         draw:
             points:
@@ -25,7 +25,7 @@ layers:
                 color: "#fff"
                 size: 12px
     _dots2:
-        data: { source: _dots }
+        data: { source: _dots, layer: dots }
         draw:
             points:
                 collide: false
