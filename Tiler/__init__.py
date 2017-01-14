@@ -17,7 +17,7 @@ def get_scene():
 @app.route('/<int:zoom>/<int:col>/<int:row>.<ext>')
 @app.route('/<int:zoom>/<int:col>/<int:row>')
 def get_tile(zoom, col, row, ext='json'):
-    layer = config.layers['dots.mbtiles']
+    layer = config.layers['/tmp/dotmaps/dots.mbtiles']
     coord = ModestMaps.Core.Coordinate(row, col, zoom) # (1582, 656, 12)
     mime, body = TileStache.getTile(layer, coord, ext)
     headers = {'Content-Type': mime}

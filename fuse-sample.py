@@ -41,6 +41,8 @@ import logging
 import errno
 import llfuse
 
+from Tiler import remote
+
 try:
     import faulthandler
 except ImportError:
@@ -51,10 +53,14 @@ else:
 log = logging.getLogger(__name__)
 
 dots_name = b'dots.mbtiles'
-dots_path = '/home/migurski/dotmaps/dots.mbtiles'
 dots_node = llfuse.ROOT_INODE+1
+dots_href = 'http://mike.teczno.com/img/openaddr-us-ca-dots.mbtiles'
 
 class TestFs(llfuse.Operations):
+    def __init__(self, *args, **kwargs):
+        llfuse.Operations.__init__(self, *args, **kwargs)
+        self.dots_file = remote.RemoteFileObject(dots_href, verbose=True, block_size=256*1024)
+
     def getattr(self, inode, ctx=None):
         entry = llfuse.EntryAttributes()
         if inode == llfuse.ROOT_INODE:
@@ -62,7 +68,7 @@ class TestFs(llfuse.Operations):
             entry.st_size = 0
         elif inode == dots_node:
             entry.st_mode = (stat.S_IFREG | 0o644)
-            entry.st_size = os.stat(dots_path).st_size
+            entry.st_size = self.dots_file.length
         else:
             raise llfuse.FUSEError(errno.ENOENT)
 
@@ -81,12 +87,12 @@ class TestFs(llfuse.Operations):
             raise llfuse.FUSEError(errno.ENOENT)
         return self.getattr(dots_node)
 
-    def opendir(self, inode, ctx):
+    def _opendir(self, inode, ctx):
         if inode != llfuse.ROOT_INODE:
             raise llfuse.FUSEError(errno.ENOENT)
         return inode
 
-    def readdir(self, fh, off):
+    def _readdir(self, fh, off):
         assert fh == llfuse.ROOT_INODE
 
         # only one entry
@@ -94,7 +100,7 @@ class TestFs(llfuse.Operations):
             yield (dots_name, self.getattr(dots_node), 1)
 
     def open(self, inode, flags, ctx):
-        print('open:', inode, flags, ctx, file=sys.stderr)
+        log.debug('open: {}, {}, {}'.format(inode, flags, ctx))
         if inode != dots_node:
             raise llfuse.FUSEError(errno.ENOENT)
         if flags & os.O_RDWR or flags & os.O_WRONLY:
@@ -102,14 +108,13 @@ class TestFs(llfuse.Operations):
         return inode
 
     def read(self, fh, off, size):
-        print('read:', fh, off, size, file=sys.stderr)
+        log.debug('read: {}, {}, {}'.format(fh, off, size))
         assert fh == dots_node
-        with open(dots_path, 'rb') as file:
-            file.seek(off)
-            return file.read(size)
+        self.dots_file.seek(off)
+        return self.dots_file.read(size)
     
     def release(self, inode):
-        print('release:', inode, file=sys.stderr)
+        log.debug('release: {}'.format(inode))
 
 def init_logging(debug=False):
     formatter = logging.Formatter('%(asctime)s.%(msecs)03d %(threadName)s: '

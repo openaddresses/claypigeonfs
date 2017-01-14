@@ -3,6 +3,9 @@ import sqlite3, subprocess, re, os.path
 
 WARNING_PAT_TPL = r'^\S+: Warning: using tile \d+/\d+/\d+ instead of {0}/{1}/{2}\n'
 
+class MissingTile (Exception):
+    pass
+
 class Config:
     ''' Implements minimal configuration object for TileStache.
     
@@ -72,12 +75,15 @@ class TileWriter:
         self.zxy = self.coord.zoom, self.coord.column, self.coord.row
     
     def save(self, output, format):
-        if format == 'Mapbox Vector Tile':
-            return self.save_MapboxVectorTile(output)
-        elif format == 'GeoJSON':
-            return self.save_GeoJSON(output)
-        else:
-            raise ValueError('Unknown TileWriter format {}'.format(format))
+        try:
+            if format == 'Mapbox Vector Tile':
+                return self.save_MapboxVectorTile(output)
+            elif format == 'GeoJSON':
+                return self.save_GeoJSON(output)
+            else:
+                raise ValueError('Unknown TileWriter format {}'.format(format))
+        except MissingTile:
+            output.write(b'I am not a tile')
     
     def save_MapboxVectorTile(self, output):
         ''' Write raw MVT bytes from MBTiles row to output.
@@ -91,7 +97,7 @@ class TileWriter:
             try:
                 (content, ) = res.fetchone()
             except TypeError:
-                raise ValueError('Missing TileWriter tile {}/{}/{}'.format(*self.zxy))
+                raise MissingTile('Missing TileWriter tile {}/{}/{}'.format(*self.zxy))
         output.write(content)
     
     def save_GeoJSON(self, output):
@@ -104,5 +110,5 @@ class TileWriter:
         if 'Warning' in heading:
             warning_pattern = re.compile(WARNING_PAT_TPL.format(*self.zxy))
             if warning_pattern.match(heading):
-                raise ValueError('Missing TileWriter tile {}/{}/{}'.format(*self.zxy))
+                raise MissingTile('Missing TileWriter tile {}/{}/{}'.format(*self.zxy))
         output.write(content)
