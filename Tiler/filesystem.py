@@ -54,7 +54,7 @@ log = logging.getLogger(__name__)
 
 dots_name = b'dots.mbtiles'
 dots_node = llfuse.ROOT_INODE+1
-dots_href = 'http://mike.teczno.com/img/openaddr-us-ca-dots.mbtiles'
+dots_href = 'http://s3.amazonaws.com/dotmaps.openaddresses.io/us-ca-monthly/set_141476.mbtiles'
 
 class TestFs(llfuse.Operations):
     def __init__(self, *args, **kwargs):
