@@ -66,7 +66,7 @@ class RemoteFileObject:
                 
                 if self.verbose:
                     loaded = float(self.block_size) * len(self.chunks) / self.length
-                    getLogger(__name__).info('{:.1f}% of {}'.format(min(100, 100 * loaded), basename(self.url)))
+                    getLogger(__name__).info('bytes {1} - {2} of {0}'.format(basename(self.url), *range))
 
             chunk = self.chunks[chunk_offset]
             in_chunk_offset = self.offset % self.block_size

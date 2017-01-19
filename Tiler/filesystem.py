@@ -22,26 +22,20 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 '''
-
-from __future__ import division, print_function, absolute_import
+from argparse import ArgumentParser
 
 import os
 import sys
-
-# We are running from the Python-LLFUSE source directory, put it
-# into the Python path.
-basedir = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), '..'))
-if (os.path.exists(os.path.join(basedir, 'setup.py')) and
-    os.path.exists(os.path.join(basedir, 'src', 'llfuse'))):
-    sys.path.append(os.path.join(basedir, 'src'))
-
-from argparse import ArgumentParser
 import stat
 import logging
 import errno
-import llfuse
+import struct
+import base64
+import hashlib
+import urllib.parse
 
-from Tiler import remote
+import llfuse
+from . import remote
 
 try:
     import faulthandler
@@ -52,23 +46,29 @@ else:
 
 log = logging.getLogger(__name__)
 
-dots_name = b'dots.mbtiles'
-dots_node = llfuse.ROOT_INODE+1
-dots_href = 'http://s3.amazonaws.com/dotmaps.openaddresses.io/us-ca-monthly/set_141476.mbtiles'
-
-class TestFs(llfuse.Operations):
-    def __init__(self, *args, **kwargs):
+class RemoteFileFS(llfuse.Operations):
+    '''
+    '''
+    def __init__(self, base_url, *args, **kwargs):
         llfuse.Operations.__init__(self, *args, **kwargs)
-        self.dots_file = remote.RemoteFileObject(dots_href, verbose=True, block_size=256*1024)
+        self.base_url = base_url
+        self.inode_map = dict()
 
     def getattr(self, inode, ctx=None):
+        log.debug('RemoteFileFS.getattr: {}, {}'.format(inode, ctx))
+
         entry = llfuse.EntryAttributes()
+
         if inode == llfuse.ROOT_INODE:
             entry.st_mode = (stat.S_IFDIR | 0o755)
             entry.st_size = 0
-        elif inode == dots_node:
-            entry.st_mode = (stat.S_IFREG | 0o644)
-            entry.st_size = self.dots_file.length
+        elif inode in self.inode_map:
+            try:
+                entry.st_mode = (stat.S_IFREG | 0o644)
+                entry.st_size = get_remote_file_object(self.inode_map[inode]).length
+            except Exception as e:
+                log.error('%s in RemoteFileFS.gettatr: %s', type(e), e)
+                raise llfuse.FUSEError(errno.EIO)
         else:
             raise llfuse.FUSEError(errno.ENOENT)
 
@@ -83,38 +83,69 @@ class TestFs(llfuse.Operations):
         return entry
 
     def lookup(self, parent_inode, name, ctx=None):
-        if parent_inode != llfuse.ROOT_INODE or name != dots_name:
+        log.debug('RemoteFileFS.lookup: {}, {}, {}'.format(parent_inode, name, ctx))
+        
+        if parent_inode != llfuse.ROOT_INODE:
             raise llfuse.FUSEError(errno.ENOENT)
-        return self.getattr(dots_node)
 
-    def _opendir(self, inode, ctx):
-        if inode != llfuse.ROOT_INODE:
+        try:
+            hash_inode, full_url = calculate_file_inode(name, self.base_url)
+        except Exception as e:
+            log.error('%s in RemoteFileFS.lookup: %s', type(e), e)
             raise llfuse.FUSEError(errno.ENOENT)
-        return inode
 
-    def _readdir(self, fh, off):
-        assert fh == llfuse.ROOT_INODE
-
-        # only one entry
-        if off == 0:
-            yield (dots_name, self.getattr(dots_node), 1)
+        self.inode_map[hash_inode] = full_url
+        return self.getattr(hash_inode)
 
     def open(self, inode, flags, ctx):
-        log.debug('open: {}, {}, {}'.format(inode, flags, ctx))
-        if inode != dots_node:
+        log.debug('RemoteFileFS.open: {}, {}, {}'.format(inode, flags, ctx))
+        if inode not in self.inode_map:
             raise llfuse.FUSEError(errno.ENOENT)
         if flags & os.O_RDWR or flags & os.O_WRONLY:
             raise llfuse.FUSEError(errno.EPERM)
         return inode
 
-    def read(self, fh, off, size):
-        log.debug('read: {}, {}, {}'.format(fh, off, size))
-        assert fh == dots_node
-        self.dots_file.seek(off)
-        return self.dots_file.read(size)
+    def read(self, inode, off, size):
+        log.debug('RemoteFileFS.read: {}, {}, {}'.format(inode, off, size))
+
+        if inode not in self.inode_map:
+            raise llfuse.FUSEError(errno.ENOENT)
+
+        try:
+            file = get_remote_file_object(self.inode_map[inode])
+            file.seek(off)
+            data = file.read(size)
+        except Exception as e:
+            log.error('%s in RemoteFileFS.read: %s', type(e), e)
+            raise llfuse.FUSEError(errno.EIO)
+
+        return data
+
+def calculate_file_inode(name_bytes, base_url):
+    ''' Calculate and return inode number and full URL for file name.
     
-    def release(self, inode):
-        log.debug('release: {}'.format(inode))
+        File name is interpreted as base64-encoded bytes and joined to base URL.
+    '''
+    rel_name = base64.b64decode(name_bytes).decode('utf8')
+    full_url = urllib.parse.urljoin(base_url, rel_name)
+    log.debug('rel_name: {}, full_url: {}'.format(rel_name, full_url))
+
+    hashed = hashlib.sha1(full_url.encode('utf8'))
+    (hash_inode, ) = struct.unpack('L', hashed.digest()[:8])
+    log.debug('hashed: {}, hash_inode: {}'.format(hashed.hexdigest(), hash_inode))
+    
+    if urllib.parse.urlparse(full_url).scheme not in ('http', 'https'):
+        raise ValueError('Unknown URL scheme in {}'.format(repr(full_url)))
+    
+    if base_url and not full_url.startswith(base_url):
+        raise ValueError('URL outside of {}: {}'.format(base_url, repr(full_url)))
+    
+    return hash_inode, full_url
+
+def get_remote_file_object(url):
+    ''' Return remote.RemoteFileObject() instance for a URL.
+    '''
+    return remote.RemoteFileObject(url, verbose=True, block_size=256*1024)
 
 def init_logging(debug=False):
     formatter = logging.Formatter('%(asctime)s.%(msecs)03d %(threadName)s: '
@@ -131,12 +162,14 @@ def init_logging(debug=False):
     root_logger.addHandler(handler)
 
 def parse_args():
-    '''Parse command line'''
-
+    ''' Parse command line.
+    '''
     parser = ArgumentParser()
 
     parser.add_argument('mountpoint', type=str,
                         help='Where to mount the file system')
+    parser.add_argument('--base-url', type=str,
+                        help='Base URL under which all file names will be found.')
     parser.add_argument('--debug', action='store_true', default=False,
                         help='Enable debugging output')
     parser.add_argument('--debug-fuse', action='store_true', default=False,
@@ -148,12 +181,12 @@ def main():
     options = parse_args()
     init_logging(options.debug)
 
-    testfs = TestFs()
+    remotefs = RemoteFileFS(options.base_url)
     fuse_options = set(llfuse.default_options)
-    fuse_options.add('fsname=lltest')
+    fuse_options.add('fsname=Tiler.filesystem')
     if options.debug_fuse:
         fuse_options.add('debug')
-    llfuse.init(testfs, options.mountpoint, fuse_options)
+    llfuse.init(remotefs, options.mountpoint, fuse_options)
     try:
         llfuse.main(workers=1)
     except:
@@ -161,7 +194,6 @@ def main():
         raise
 
     llfuse.close()
-
 
 if __name__ == '__main__':
     main()
