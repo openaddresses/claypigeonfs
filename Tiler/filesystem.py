@@ -53,6 +53,7 @@ class RemoteFileFS(llfuse.Operations):
         llfuse.Operations.__init__(self, *args, **kwargs)
         self.base_url = base_url
         self.inode_map = dict()
+        self.open_files = dict()
 
     def getattr(self, inode, ctx=None):
         log.debug('RemoteFileFS.getattr: {}, {}'.format(inode, ctx))
@@ -99,27 +100,39 @@ class RemoteFileFS(llfuse.Operations):
 
     def open(self, inode, flags, ctx):
         log.debug('RemoteFileFS.open: {}, {}, {}'.format(inode, flags, ctx))
+
         if inode not in self.inode_map:
             raise llfuse.FUSEError(errno.ENOENT)
+
         if flags & os.O_RDWR or flags & os.O_WRONLY:
             raise llfuse.FUSEError(errno.EPERM)
+
+        try:
+            self.open_files[inode] = get_remote_file_object(self.inode_map[inode])
+        except Exception as e:
+            log.error('%s in RemoteFileFS.open: %s', type(e), e)
+            raise llfuse.FUSEError(errno.EIO)
+        
         return inode
 
     def read(self, inode, off, size):
         log.debug('RemoteFileFS.read: {}, {}, {}'.format(inode, off, size))
 
-        if inode not in self.inode_map:
+        if inode not in self.inode_map or inode not in self.open_files:
             raise llfuse.FUSEError(errno.ENOENT)
 
         try:
-            file = get_remote_file_object(self.inode_map[inode])
-            file.seek(off)
-            data = file.read(size)
+            self.open_files[inode].seek(off)
+            data = self.open_files[inode].read(size)
         except Exception as e:
             log.error('%s in RemoteFileFS.read: %s', type(e), e)
             raise llfuse.FUSEError(errno.EIO)
 
         return data
+    
+    def release(self, inode):
+        log.debug('RemoteFileFS.release: {}'.format(inode))
+        del self.open_files[inode]
 
 def calculate_file_inode(name_bytes, base_url):
     ''' Calculate and return inode number and full URL for file name.
