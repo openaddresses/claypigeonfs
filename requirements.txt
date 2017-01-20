@@ -1,8 +1,0 @@
-https://github.com/TileStache/TileStache/archive/44be9adf5080.zip
-click==6.7
-Flask==0.12
-itsdangerous==0.24
-Jinja2==2.9.3
-MarkupSafe==0.23
-olefile==0.44
-llfuse==1.1.1
