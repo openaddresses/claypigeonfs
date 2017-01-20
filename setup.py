@@ -18,7 +18,7 @@ setup(
             'claypigeon-mount = Claypigeon.filesystem:main',
         ]
     ),
-    package_data = {},
+    package_data = {'Claypigeon': ['VERSION']},
     test_suite = 'Claypigeon.tests',
     install_requires = [
         'llfuse == 1.1.1',
