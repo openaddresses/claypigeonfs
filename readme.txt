@@ -1,6 +1,6 @@
-Claypigeon is a FUSE filesystem for remote ranged HTTP files. It is designed to
-allow filesystem access to remote files over HTTP, such as SQLite databases too
-large to download quickly.
+Claypigeon is a read-only FUSE filesystem for remote ranged HTTP files. It is
+designed to allow filesystem access to remote files over HTTP, such as SQLite
+databases too large to download quickly.
 
 Install on Ubuntu Linux:
 
