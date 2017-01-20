@@ -29,9 +29,7 @@ import sys
 import stat
 import logging
 import errno
-import struct
 import base64
-import hashlib
 import urllib.parse
 
 import llfuse
@@ -52,7 +50,7 @@ class RemoteFileFS(llfuse.Operations):
     def __init__(self, base_url, *args, **kwargs):
         llfuse.Operations.__init__(self, *args, **kwargs)
         self.base_url = base_url
-        self.inode_map = dict()
+        self.inode_list = [None for i in range(llfuse.ROOT_INODE + 1)]
         self.open_files = dict()
 
     def getattr(self, inode, ctx=None):
@@ -63,10 +61,10 @@ class RemoteFileFS(llfuse.Operations):
         if inode == llfuse.ROOT_INODE:
             entry.st_mode = (stat.S_IFDIR | 0o755)
             entry.st_size = 0
-        elif inode in self.inode_map:
+        elif inode < len(self.inode_list):
             try:
                 entry.st_mode = (stat.S_IFREG | 0o644)
-                entry.st_size = get_remote_file_object(self.inode_map[inode]).length
+                entry.st_size = get_remote_file_object(self.inode_list[inode]).length
             except Exception as e:
                 log.error('%s in RemoteFileFS.gettatr: %s', type(e), e)
                 raise llfuse.FUSEError(errno.EIO)
@@ -90,25 +88,32 @@ class RemoteFileFS(llfuse.Operations):
             raise llfuse.FUSEError(errno.ENOENT)
 
         try:
-            hash_inode, full_url = calculate_file_inode(name, self.base_url)
+            full_url = calculate_file_url(name, self.base_url)
         except Exception as e:
             log.error('%s in RemoteFileFS.lookup: %s', type(e), e)
             raise llfuse.FUSEError(errno.ENOENT)
 
-        self.inode_map[hash_inode] = full_url
-        return self.getattr(hash_inode)
+        if full_url in self.inode_list:
+            inode = self.inode_list.index(full_url)
+            log.debug('RemoteFileFS.lookup: found {} at {}'.format(full_url, inode))
+        else:
+            inode = len(self.inode_list)
+            log.debug('RemoteFileFS.lookup: added {} at {}'.format(full_url, inode))
+            self.inode_list.append(full_url)
+        
+        return self.getattr(inode)
 
     def open(self, inode, flags, ctx):
         log.debug('RemoteFileFS.open: {}, {}, {}'.format(inode, flags, ctx))
 
-        if inode not in self.inode_map:
+        if inode >= len(self.inode_list):
             raise llfuse.FUSEError(errno.ENOENT)
 
         if flags & os.O_RDWR or flags & os.O_WRONLY:
             raise llfuse.FUSEError(errno.EPERM)
 
         try:
-            self.open_files[inode] = get_remote_file_object(self.inode_map[inode])
+            self.open_files[inode] = get_remote_file_object(self.inode_list[inode])
         except Exception as e:
             log.error('%s in RemoteFileFS.open: %s', type(e), e)
             raise llfuse.FUSEError(errno.EIO)
@@ -118,7 +123,7 @@ class RemoteFileFS(llfuse.Operations):
     def read(self, inode, off, size):
         log.debug('RemoteFileFS.read: {}, {}, {}'.format(inode, off, size))
 
-        if inode not in self.inode_map or inode not in self.open_files:
+        if inode >= len(self.inode_list) or inode not in self.open_files:
             raise llfuse.FUSEError(errno.ENOENT)
 
         try:
@@ -134,8 +139,8 @@ class RemoteFileFS(llfuse.Operations):
         log.debug('RemoteFileFS.release: {}'.format(inode))
         del self.open_files[inode]
 
-def calculate_file_inode(name_bytes, base_url):
-    ''' Calculate and return inode number and full URL for file name.
+def calculate_file_url(name_bytes, base_url):
+    ''' Calculate and return a full URL for file name.
     
         File name is interpreted as base64-encoded bytes and joined to base URL.
     '''
@@ -143,17 +148,13 @@ def calculate_file_inode(name_bytes, base_url):
     full_url = urllib.parse.urljoin(base_url, rel_name)
     log.debug('rel_name: {}, full_url: {}'.format(rel_name, full_url))
 
-    hashed = hashlib.sha1(full_url.encode('utf8'))
-    (hash_inode, ) = struct.unpack('L', hashed.digest()[:8])
-    log.debug('hashed: {}, hash_inode: {}'.format(hashed.hexdigest(), hash_inode))
-    
     if urllib.parse.urlparse(full_url).scheme not in ('http', 'https'):
         raise ValueError('Unknown URL scheme in {}'.format(repr(full_url)))
     
     if base_url and not full_url.startswith(base_url):
         raise ValueError('URL outside of {}: {}'.format(base_url, repr(full_url)))
     
-    return hash_inode, full_url
+    return full_url
 
 def get_remote_file_object(url):
     ''' Return remote.RemoteFileObject() instance for a URL.
