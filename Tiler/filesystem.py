@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 '''
+Remote (HTTP) FUSE filesystem. Exposes getattr, lookup, open, read, and release
+methods. Accepts base64-encoded relative and absolute URLs as filenames, and
+exposes raw bytes backed by HTTP range requests to minimize network overhead.
+
+Adapted from:
+
 lltest.py - Example file system for Python-LLFUSE.
 
 This program presents a static file system containing a single file. It is
@@ -47,9 +53,10 @@ log = logging.getLogger(__name__)
 class RemoteFileFS(llfuse.Operations):
     '''
     '''
-    def __init__(self, base_url, *args, **kwargs):
+    def __init__(self, base_url, block_size, *args, **kwargs):
         llfuse.Operations.__init__(self, *args, **kwargs)
         self.base_url = base_url
+        self.block_size = block_size
         self.inode_list = [None for i in range(llfuse.ROOT_INODE + 1)]
         self.open_files = dict()
 
@@ -64,7 +71,7 @@ class RemoteFileFS(llfuse.Operations):
         elif inode < len(self.inode_list):
             try:
                 entry.st_mode = (stat.S_IFREG | 0o644)
-                entry.st_size = get_remote_file_object(self.inode_list[inode]).length
+                entry.st_size = remote.RemoteFileObject(self.inode_list[inode], block_size=self.block_size).length
             except Exception as e:
                 log.error('%s in RemoteFileFS.gettatr: %s', type(e), e)
                 raise llfuse.FUSEError(errno.EIO)
@@ -113,7 +120,7 @@ class RemoteFileFS(llfuse.Operations):
             raise llfuse.FUSEError(errno.EPERM)
 
         try:
-            self.open_files[inode] = get_remote_file_object(self.inode_list[inode])
+            self.open_files[inode] = remote.RemoteFileObject(self.inode_list[inode], block_size=self.block_size)
         except Exception as e:
             log.error('%s in RemoteFileFS.open: %s', type(e), e)
             raise llfuse.FUSEError(errno.EIO)
@@ -156,11 +163,6 @@ def calculate_file_url(name_bytes, base_url):
     
     return full_url
 
-def get_remote_file_object(url):
-    ''' Return remote.RemoteFileObject() instance for a URL.
-    '''
-    return remote.RemoteFileObject(url, verbose=True, block_size=256*1024)
-
 def init_logging(debug=False):
     formatter = logging.Formatter('%(asctime)s.%(msecs)03d %(threadName)s: '
                                   '[%(name)s] %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
@@ -184,6 +186,8 @@ def parse_args():
                         help='Where to mount the file system')
     parser.add_argument('--base-url', type=str,
                         help='Base URL under which all file names will be found.')
+    parser.add_argument('--block-size', type=int, default=256*1024,
+                        help='Block size in bytes for remote file object. Default 256KB.')
     parser.add_argument('--debug', action='store_true', default=False,
                         help='Enable debugging output')
     parser.add_argument('--debug-fuse', action='store_true', default=False,
@@ -195,7 +199,7 @@ def main():
     options = parse_args()
     init_logging(options.debug)
 
-    remotefs = RemoteFileFS(options.base_url)
+    remotefs = RemoteFileFS(options.base_url, options.block_size)
     fuse_options = set(llfuse.default_options)
     fuse_options.add('fsname=Tiler.filesystem')
     if options.debug_fuse:
