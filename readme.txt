@@ -2,7 +2,7 @@ Claypigeon is a FUSE filesystem for remote ranged HTTP files. It is designed to
 allow filesystem access to remote files over HTTP, such as SQLite databases too
 large to download quickly.
 
-Pre-requisites:
+Install on Ubuntu Linux:
 
     apt-get install pkg-config libfuse-dev python3-dev libattr1-dev
     pip install Claypigeon
