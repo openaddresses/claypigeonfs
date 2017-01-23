@@ -144,7 +144,8 @@ class RemoteFileFS(llfuse.Operations):
     
     def release(self, inode):
         log.debug('RemoteFileFS.release: {}'.format(inode))
-        del self.open_files[inode]
+        if inode in self.open_files:
+            del self.open_files[inode]
 
 def calculate_file_url(name_bytes, base_url):
     ''' Calculate and return a full URL for file name.
