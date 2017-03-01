@@ -37,6 +37,7 @@ import logging
 import errno
 import base64
 import urllib.parse
+import binascii
 
 import llfuse
 from . import remote
@@ -99,6 +100,10 @@ class RemoteFileFS(llfuse.Operations):
         except Exception as e:
             log.error('%s in RemoteFileFS.lookup: %s', type(e), e)
             raise llfuse.FUSEError(errno.ENOENT)
+        else:
+            if full_url is None:
+                log.debug('Unknowable filename: %s', name)
+                raise llfuse.FUSEError(errno.ENOENT)
 
         if full_url in self.inode_list:
             inode = self.inode_list.index(full_url)
@@ -152,7 +157,10 @@ def calculate_file_url(name_bytes, base_url):
     
         File name is interpreted as base64-encoded bytes and joined to base URL.
     '''
-    rel_name = base64.b64decode(name_bytes).decode('utf8')
+    try:
+        rel_name = base64.b64decode(name_bytes).decode('utf8')
+    except binascii.Error:
+        return None
     full_url = urllib.parse.urljoin(base_url, rel_name)
     log.debug('rel_name: {}, full_url: {}'.format(rel_name, full_url))
 
