@@ -22,6 +22,6 @@ setup(
     test_suite = 'Claypigeon.tests',
     install_requires = [
         'llfuse == 1.1.1',
-        'requests == 2.12.4',
+        'requests == 2.20.0',
         ]
 )
